@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Vestia · Qué me pongo hoy</title>
+  <meta name="description" content="Tu asistente de estilo: mira el tiempo de tu zona y te dice qué ponerte.">
+  <meta name="theme-color" content="#f6f1ea" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#121118" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌤️</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#app">Saltar al contenido</a>
+
+  <header class="topbar">
+    <a class="brand" href="#/" aria-label="Vestia, ir a la portada">
+      <span class="brand-mark" aria-hidden="true">🌤️</span>
+      <span class="brand-name">Vestia</span>
+    </a>
+    <div class="menu-wrap">
+      <button class="menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="menu" aria-label="Abrir menú">
+        <span class="menu-btn-label">Menú</span>
+        <span class="burger" aria-hidden="true"><span></span><span></span><span></span></span>
+      </button>
+      <nav class="menu" id="menu" aria-label="Secciones" hidden>
+        <a href="#/" data-route="/"><span class="menu-icon">🏠</span><span><strong>Inicio</strong><small>Todo lo que puedes hacer</small></span></a>
+        <a href="#/que-me-pongo" data-route="/que-me-pongo"><span class="menu-icon">👕</span><span><strong>¿Qué me pongo?</strong><small>Tu outfit según el tiempo</small></span></a>
+        <a href="#/armario" data-route="/armario"><span class="menu-icon">🚪</span><span><strong>Mi armario</strong><small>Tu ropa, organizada</small></span><span class="badge">Pronto</span></a>
+        <a href="#/explorar" data-route="/explorar"><span class="menu-icon">✨</span><span><strong>Explorar outfits</strong><small>Ideas e inspiración</small></span><span class="badge">Pronto</span></a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="app" tabindex="-1">
+
+    <!-- ============================ PORTADA ============================ -->
+    <section class="view home" data-view="/">
+      <div class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Tu asistente de estilo según el tiempo</p>
+          <h1>Vístete para el tiempo que <span class="hl">de verdad</span> va a hacer.</h1>
+          <p class="lead">Miramos la previsión de tu zona hora a hora, durante el tiempo que vas a estar fuera, y te proponemos qué ponerte según tu ánimo, tu plan y tus colores.</p>
+          <div class="hero-actions">
+            <a class="btn btn-primary" href="#/que-me-pongo">¿Qué me pongo hoy? <span aria-hidden="true">→</span></a>
+            <a class="btn btn-ghost" href="#secciones">Ver secciones</a>
+          </div>
+        </div>
+
+        <div class="hero-visual" aria-hidden="true">
+          <div class="float f1">☀️</div>
+          <div class="float f2">☂️</div>
+          <div class="float f3">🧣</div>
+          <div class="preview-card">
+            <div class="preview-head">
+              <div>
+                <span class="preview-place">📍 Tu zona · 9:00–19:00</span>
+                <span class="preview-temp">14° <small>/ 19°</small></span>
+              </div>
+              <span class="preview-sky">🌦️</span>
+            </div>
+            <div class="preview-tags">
+              <span>💧 60%</span><span>💨 18 km/h</span><span>😄 Feliz</span>
+            </div>
+            <ul class="preview-list">
+              <li><span class="dot" style="--c:#f3c637">👕</span>Camiseta de manga larga</li>
+              <li><span class="dot" style="--c:#1f2f55">🧶</span>Jersey de punto fino</li>
+              <li><span class="dot" style="--c:#d9c7a7">🧥</span>Gabardina</li>
+              <li><span class="dot" style="--c:#4a6d9c">👖</span>Vaqueros</li>
+              <li><span class="dot" style="--c:#8d9099">👟</span>Zapatillas impermeables</li>
+            </ul>
+            <div class="preview-foot">☂️ Paraguas · 🕶️ Gafas de sol</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section" id="secciones">
+        <div class="section-head">
+          <p class="eyebrow">Secciones</p>
+          <h2>Todo lo que puedes hacer</h2>
+        </div>
+        <div class="feature-grid">
+          <article class="feature feature-main">
+            <div class="feature-top">
+              <span class="feature-icon">👕</span>
+              <span class="badge badge-live">Disponible</span>
+            </div>
+            <h3>¿Qué me pongo?</h3>
+            <p>Tu outfit del día a partir del tiempo real de tu zona.</p>
+            <ul class="checks">
+              <li>Previsión hora a hora durante el tiempo que vas a estar fuera</li>
+              <li>Tu ubicación automática, o la zona que tú elijas</li>
+              <li>Se adapta a tu estado de ánimo, la ocasión y tu color favorito</li>
+              <li>¿Cambias de zona? Tiene en cuenta el tiempo de las dos</li>
+            </ul>
+            <a class="btn btn-primary" href="#/que-me-pongo">Probar ahora <span aria-hidden="true">→</span></a>
+          </article>
+          <article class="feature">
+            <div class="feature-top">
+              <span class="feature-icon">🚪</span>
+              <span class="badge">Próximamente</span>
+            </div>
+            <h3>Mi armario</h3>
+            <p>Añade tus prendas y las recomendaciones saldrán de tu propia ropa.</p>
+            <ul class="checks">
+              <li>Fotos y etiquetas de cada prenda</li>
+              <li>Marca lo que está en la lavadora</li>
+              <li>Evita repetir conjuntos</li>
+            </ul>
+          </article>
+          <article class="feature">
+            <div class="feature-top">
+              <span class="feature-icon">✨</span>
+              <span class="badge">Próximamente</span>
+            </div>
+            <h3>Explorar outfits</h3>
+            <p>Inspiración por estilos, estaciones y ocasiones.</p>
+            <ul class="checks">
+              <li>Ideas para cada tipo de tiempo</li>
+              <li>Looks de fiesta, trabajo y etiqueta</li>
+              <li>Guarda tus favoritos</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head">
+          <p class="eyebrow">Cómo funciona</p>
+          <h2>Tu outfit en tres pasos</h2>
+        </div>
+        <ol class="steps">
+          <li><span class="step-n">1</span><h3>Dinos dónde estás</h3><p>Comparte tu ubicación o escribe tu ciudad.</p></li>
+          <li><span class="step-n">2</span><h3>Cuéntanos tu plan</h3><p>Cuánto tiempo estarás fuera, cómo te sientes y para qué te vistes.</p></li>
+          <li><span class="step-n">3</span><h3>Recibe tu outfit</h3><p>Prendas, colores, complementos y consejos.</p></li>
+        </ol>
+      </div>
+
+      <div class="cta-band">
+        <div>
+          <h2>¿Sales en un rato?</h2>
+          <p>Descubre qué ponerte en menos de un minuto.</p>
+        </div>
+        <a class="btn btn-light" href="#/que-me-pongo">Empezar <span aria-hidden="true">→</span></a>
+      </div>
+    </section>
+
+    <!-- ========================= ¿QUÉ ME PONGO? ========================= -->
+    <section class="view outfit-view" data-view="/que-me-pongo" hidden>
+      <div class="page-head">
+        <p class="eyebrow">Tu outfit según el tiempo</p>
+        <h1>¿Qué me pongo?</h1>
+      </div>
+
+      <div class="card location-card" id="location-card" aria-live="polite"></div>
+
+      <div id="result" aria-live="polite"></div>
+
+      <form class="card options" id="options" hidden>
+        <div class="options-head">
+          <h2>Personaliza tu outfit</h2>
+          <p>Los cambios se aplican al momento.</p>
+        </div>
+
+        <fieldset class="opt">
+          <legend>¿Cómo te sientes hoy?</legend>
+          <div class="chips" id="opt-mood"></div>
+        </fieldset>
+
+        <fieldset class="opt">
+          <legend>¿Cuándo sales y cuánto tiempo estarás fuera?</legend>
+          <div class="row">
+            <div class="segmented" id="opt-when" role="radiogroup" aria-label="Cuándo sales">
+              <button type="button" role="radio" data-value="now">Ahora</button>
+              <button type="button" role="radio" data-value="today">Hoy a las…</button>
+              <button type="button" role="radio" data-value="tomorrow">Mañana a las…</button>
+            </div>
+            <label class="select-wrap" id="opt-hour-wrap" hidden>
+              <span class="sr-only">Hora de salida</span>
+              <select id="opt-hour"></select>
+            </label>
+          </div>
+          <label class="range">
+            <span>Horas fuera</span>
+            <input type="range" id="opt-hours" min="1" max="16" step="1" value="8">
+            <output id="opt-hours-out">8 h</output>
+          </label>
+        </fieldset>
+
+        <fieldset class="opt">
+          <legend>¿Vas a ir a otra zona?</legend>
+          <label class="switch">
+            <input type="checkbox" id="opt-trip">
+            <span class="switch-ui" aria-hidden="true"></span>
+            <span>Sí, voy a moverme a otra zona</span>
+          </label>
+          <div id="opt-destination" hidden></div>
+        </fieldset>
+
+        <fieldset class="opt">
+          <legend>¿Quieres vestir de algún color?</legend>
+          <div class="swatches" id="opt-color"></div>
+        </fieldset>
+
+        <fieldset class="opt">
+          <legend>¿Para qué ocasión?</legend>
+          <div class="chips" id="opt-occasion"></div>
+        </fieldset>
+
+        <fieldset class="opt">
+          <legend>Tipo de prendas</legend>
+          <div class="segmented" id="opt-fit" role="radiogroup" aria-label="Tipo de prendas"></div>
+        </fieldset>
+
+        <button type="button" class="btn btn-primary btn-block" id="see-outfit">Ver mi outfit <span aria-hidden="true">↑</span></button>
+      </form>
+    </section>
+
+    <!-- ============================ PRÓXIMAMENTE ============================ -->
+    <section class="view soon-view" data-view="/armario" hidden>
+      <div class="soon-card">
+        <span class="soon-icon">🚪</span>
+        <span class="badge">Próximamente</span>
+        <h1>Mi armario</h1>
+        <p>Aquí podrás guardar tus prendas para que las recomendaciones salgan de tu propia ropa. Estamos trabajando en ello.</p>
+        <a class="btn btn-primary" href="#/que-me-pongo">Mientras tanto, ¿qué me pongo hoy? <span aria-hidden="true">→</span></a>
+      </div>
+    </section>
+
+    <section class="view soon-view" data-view="/explorar" hidden>
+      <div class="soon-card">
+        <span class="soon-icon">✨</span>
+        <span class="badge">Próximamente</span>
+        <h1>Explorar outfits</h1>
+        <p>Inspiración por estilos, estaciones y ocasiones, y la opción de guardar tus favoritos. Muy pronto.</p>
+        <a class="btn btn-primary" href="#/que-me-pongo">Mientras tanto, ¿qué me pongo hoy? <span aria-hidden="true">→</span></a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>Vestia · Hecho para no pasar ni frío ni calor</span>
+    <span id="attribution"></span>
+  </footer>
+
+  <button type="button" class="to-outfit" id="to-outfit" hidden>Ver outfit <span aria-hidden="true">↑</span></button>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
