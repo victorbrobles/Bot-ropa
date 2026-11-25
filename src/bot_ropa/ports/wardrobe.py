@@ -1,0 +1,29 @@
+"""Puertos de "Mi armario"."""
+
+from __future__ import annotations
+
+from typing import Protocol
+
+from ..domain.wardrobe import Identification, IdentifyRequest, WardrobeItem
+
+
+class IdentificationError(RuntimeError):
+    """El servicio de identificación no ha podido responder."""
+
+
+class GarmentIdentifier(Protocol):
+    async def identify(self, request: IdentifyRequest) -> Identification: ...
+
+
+class WardrobeRepository(Protocol):
+    def add(self, item: WardrobeItem) -> None: ...
+    def update(self, item: WardrobeItem) -> None: ...
+    def get(self, owner_id: str, item_id: str) -> WardrobeItem | None: ...
+    def list(self, owner_id: str) -> list[WardrobeItem]: ...
+    def delete(self, owner_id: str, item_id: str) -> bool: ...
+
+
+class PhotoStorage(Protocol):
+    def save(self, owner_id: str, item_id: str, index: int, data: bytes, media_type: str) -> str: ...
+    def load(self, path: str) -> tuple[bytes, str]: ...
+    def delete(self, paths: list[str]) -> None: ...
