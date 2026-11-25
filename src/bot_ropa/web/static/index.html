@@ -29,7 +29,7 @@
       <nav class="menu" id="menu" aria-label="Secciones" hidden>
         <a href="#/" data-route="/"><span class="menu-icon">🏠</span><span><strong>Inicio</strong><small>Todo lo que puedes hacer</small></span></a>
         <a href="#/que-me-pongo" data-route="/que-me-pongo"><span class="menu-icon">👕</span><span><strong>¿Qué me pongo?</strong><small>Tu outfit según el tiempo</small></span></a>
-        <a href="#/armario" data-route="/armario"><span class="menu-icon">🚪</span><span><strong>Mi armario</strong><small>Tu ropa, organizada</small></span><span class="badge">Pronto</span></a>
+        <a href="#/armario" data-route="/armario"><span class="menu-icon">🚪</span><span><strong>Mi armario</strong><small>Tu ropa, organizada</small></span></a>
         <a href="#/explorar" data-route="/explorar"><span class="menu-icon">✨</span><span><strong>Explorar outfits</strong><small>Ideas e inspiración</small></span><span class="badge">Pronto</span></a>
       </nav>
     </div>
@@ -101,15 +101,16 @@
           <article class="feature">
             <div class="feature-top">
               <span class="feature-icon">🚪</span>
-              <span class="badge">Próximamente</span>
+              <span class="badge badge-live">Disponible</span>
             </div>
             <h3>Mi armario</h3>
-            <p>Añade tus prendas y las recomendaciones saldrán de tu propia ropa.</p>
+            <p>Haz una foto a tu ropa y la reconocemos: marca, modelo, colores y materiales.</p>
             <ul class="checks">
-              <li>Fotos y etiquetas de cada prenda</li>
-              <li>Marca lo que está en la lavadora</li>
-              <li>Evita repetir conjuntos</li>
+              <li>Identificación por foto, enlace o descripción</li>
+              <li>Composición exacta leyendo la etiqueta</li>
+              <li>Tú confirmas o corriges antes de guardar</li>
             </ul>
+            <a class="btn btn-ghost" href="#/armario">Abrir mi armario <span aria-hidden="true">→</span></a>
           </article>
           <article class="feature">
             <div class="feature-top">
@@ -220,14 +221,17 @@
     </section>
 
     <!-- ============================ PRÓXIMAMENTE ============================ -->
-    <section class="view soon-view" data-view="/armario" hidden>
-      <div class="soon-card">
-        <span class="soon-icon">🚪</span>
-        <span class="badge">Próximamente</span>
-        <h1>Mi armario</h1>
-        <p>Aquí podrás guardar tus prendas para que las recomendaciones salgan de tu propia ropa. Estamos trabajando en ello.</p>
-        <a class="btn btn-primary" href="#/que-me-pongo">Mientras tanto, ¿qué me pongo hoy? <span aria-hidden="true">→</span></a>
+    <section class="view wardrobe-view" data-view="/armario" hidden>
+      <div class="page-head wd-head">
+        <div>
+          <p class="eyebrow">Tu ropa, organizada</p>
+          <h1>Mi armario</h1>
+          <p class="page-sub" id="wd-count"></p>
+        </div>
+        <button type="button" class="btn btn-primary" id="wd-add-btn"><span aria-hidden="true">＋</span> Añadir prenda</button>
       </div>
+      <div id="wd-main" aria-live="polite"></div>
+      <dialog id="wd-dialog" class="sheet" aria-label="Detalle de la prenda"></dialog>
     </section>
 
     <section class="view soon-view" data-view="/explorar" hidden>

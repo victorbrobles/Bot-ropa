@@ -5,7 +5,9 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from ...application.recommend_outfit import InvalidRequest, OutingPlan, OutfitResult, RecommendOutfit
+from ...domain.catalog import CATALOG, SLOTS
 from ...domain.options import COLORS, FITS, MOODS, OCCASIONS
+from ...domain.wardrobe import PATTERNS, STYLE_TAGS
 from ...domain.recommender import OutfitPreferences
 from ...domain.weather import HourlyWeather, Location, WeatherSummary, describe_code
 from ...ports.weather import Geocoder, WeatherServiceError
@@ -35,6 +37,11 @@ async def options():
         "colors": [{"id": c.id, "label": c.label, "hex": c.hex} for c in COLORS.values()],
         "fits": [{"id": k, "label": v} for k, v in FITS.items()],
         "max_hours": 16,
+        "garment_types": [{"id": g.id, "name": g.name, "slot": g.slot, "slot_label": SLOTS[g.slot],
+                           "icon": g.icon} for g in CATALOG],
+        "slots": [{"id": k, "label": v} for k, v in SLOTS.items()],
+        "patterns": list(PATTERNS),
+        "style_tags": list(STYLE_TAGS),
     }
 
 
