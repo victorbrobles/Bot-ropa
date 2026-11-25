@@ -3,12 +3,12 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
-from bot_ropa.adapters.identify.demo import DemoGarmentIdentifier
 from bot_ropa.adapters.persistence.photos import LocalPhotoStorage
 from bot_ropa.adapters.persistence.sqlite_wardrobe import SqliteWardrobeRepository
 from bot_ropa.config import Settings
 from bot_ropa.main import create_app
-from conftest import FakeWeather
+from bot_ropa.domain.wardrobe import ProductInfo
+from conftest import FakeProductReader, FakeWeather
 
 JPEG = b"\xff\xd8\xff\xe0" + b"0" * 100
 DETAILS = {"name": "Vaqueros rectos", "base_type": "vaqueros", "brand": "Marca",
@@ -18,9 +18,9 @@ DETAILS = {"name": "Vaqueros rectos", "base_type": "vaqueros", "brand": "Marca",
 
 @pytest.fixture
 def make_client(tmp_path):
-    def make(limit=30):
-        app = create_app(Settings(identify_daily_limit=limit), provider=FakeWeather(),
-                         identifier=DemoGarmentIdentifier(),
+    def make(limit=30, reader=None):
+        app = create_app(Settings(link_reads_daily_limit=limit), provider=FakeWeather(),
+                         product_reader=reader or FakeProductReader(),
                          wardrobe_repo=SqliteWardrobeRepository(":memory:"),
                          photo_storage=LocalPhotoStorage(tmp_path / "photos"))
         return app
@@ -29,10 +29,13 @@ def make_client(tmp_path):
 
 def test_identify_then_save_list_photo_update_delete(make_client):
     c = TestClient(make_client())
-    res = c.post("/api/wardrobe/identify", files=[("photos", ("a.jpg", JPEG, "image/jpeg"))])
+    res = c.post("/api/wardrobe/analyze", json={
+        "label_text": "98% COTTON 2% ELASTANE", "brand_lines": ["Marca"],
+        "photo_colors": [{"hex": "#1f2f55", "share": 0.7}], "description": "vaqueros rectos"})
     assert res.status_code == 200, res.text
     ident = res.json()
-    assert ident["status"] == "parcial" and "composicion" in ident["unconfirmed"]
+    assert ident["status"] == "identificada"
+    assert ident["candidate"]["materials_complete"] and ident["candidate"]["base_type_name"] == "Vaqueros"
     assert "vestia_uid" in c.cookies
 
     res = c.post("/api/wardrobe/items", data={"details": json.dumps(DETAILS), "source": "foto"},
@@ -66,19 +69,34 @@ def test_wardrobes_are_private(make_client):
 
 def test_rejects_bad_input(make_client):
     c = TestClient(make_client())
-    assert c.post("/api/wardrobe/identify").status_code == 422  # nada que identificar
-    assert c.post("/api/wardrobe/identify", files=[("photos", ("a.gif", b"GIF89a....", "image/gif"))]).status_code == 415
-    assert c.post("/api/wardrobe/identify", data={"product_url": "file:///etc/passwd"}).status_code == 422
-    four = [("photos", (f"{i}.jpg", JPEG, "image/jpeg")) for i in range(4)]
-    assert c.post("/api/wardrobe/identify", files=four).status_code == 422
+    assert c.post("/api/wardrobe/analyze", json={}).status_code == 422  # nada que analizar
+    assert c.post("/api/wardrobe/analyze", json={"product_url": "file:///etc/passwd"}).status_code == 422
+    assert c.post("/api/wardrobe/analyze", json={"photo_colors": [{"hex": "rojo", "share": 1}]}).status_code == 422
     assert c.post("/api/wardrobe/items", data={"details": json.dumps({"base_type": "x"})}).status_code == 422
+    bad = c.post("/api/wardrobe/items", data={"details": json.dumps(DETAILS)},
+                 files=[("photos", ("a.gif", b"GIF89a....", "image/gif"))])
+    assert bad.status_code == 415
+    four = [("photos", (f"{i}.jpg", JPEG, "image/jpeg")) for i in range(4)]
+    assert c.post("/api/wardrobe/items", data={"details": json.dumps(DETAILS)}, files=four).status_code == 422
 
 
-def test_second_attempt_with_link_and_daily_limit(make_client):
-    c = TestClient(make_client(limit=2))
-    res = c.post("/api/wardrobe/identify", data={
-        "product_url": "https://marca.example/jersey", "description": "jersey verde de merino",
-        "rejected": json.dumps(["Marca Demo · Oxford Regular Fit"])})
-    assert res.json()["status"] == "identificada"
-    assert c.post("/api/wardrobe/identify", data={"description": "x"}).status_code == 200
-    assert c.post("/api/wardrobe/identify", data={"description": "x"}).status_code == 429
+def test_product_link_and_daily_limit(make_client):
+    product = ProductInfo(url="https://shop.example/p", name="Jersey de lana merino", brand="Marca Z",
+                          material="100% lana merino", color="verde")
+    reader = FakeProductReader(product)
+    c = TestClient(make_client(limit=1, reader=reader))
+    res = c.post("/api/wardrobe/analyze", json={"product_url": "https://shop.example/p"}).json()
+    assert res["status"] == "identificada" and res["candidate"]["brand"] == "Marca Z"
+    assert res["provenance"]["materials"] == "web"
+    assert reader.calls == ["https://shop.example/p"]
+    assert c.post("/api/wardrobe/analyze", json={"product_url": "https://shop.example/p"}).status_code == 429
+    # Sin enlace no hay límite: el análisis es local y gratuito.
+    assert c.post("/api/wardrobe/analyze", json={"description": "camiseta"}).status_code == 200
+
+
+def test_shop_that_blocks_us_still_returns_a_draft(make_client):
+    c = TestClient(make_client(reader=FakeProductReader(error="Esa tienda no deja leer su web automáticamente.")))
+    res = c.post("/api/wardrobe/analyze", json={"product_url": "https://shop.example/p",
+                                                "description": "sudadera gris"}).json()
+    assert res["candidate"]["base_type"] == "sudadera"
+    assert res["message"].startswith("Esa tienda no deja")

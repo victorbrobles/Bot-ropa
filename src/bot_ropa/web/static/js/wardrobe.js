@@ -18,7 +18,88 @@ const LEVELS = [
 ];
 const PATTERN_LABELS = { liso: "Liso", rayas: "Rayas", cuadros: "Cuadros", estampado: "Estampado", lunares: "Lunares", otro: "Otro" };
 const UNCONFIRMED_LABELS = { marca: "marca", modelo: "modelo", referencia: "referencia", composicion: "composición", colores: "colores", tipo: "tipo de prenda" };
-const IDENTIFY_STEPS = ["Mirando la foto…", "Leyendo las etiquetas…", "Buscando la ficha del producto…", "Comprobando materiales y colores…", "Casi está…"];
+const SOURCE_BADGES = { etiqueta: "🏷️ Etiqueta", web: "🌐 Ficha web", foto: "📷 Foto", descripcion: "✍️ Tu descripción" };
+const TESSERACT_URL = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
+
+// ------------------------------------------------------------ OCR (gratis, en el navegador)
+let tesseractPromise = null;
+function loadTesseract() {
+  tesseractPromise ??= new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = TESSERACT_URL;
+    script.onload = () => resolve(window.Tesseract);
+    script.onerror = () => { tesseractPromise = null; reject(new Error("No se ha podido cargar el lector de etiquetas. Revisa tu conexión.")); };
+    document.head.append(script);
+  });
+  return tesseractPromise;
+}
+
+/** Lee el texto de una foto. Devuelve el texto y las líneas de más a menos destacadas (por tamaño de letra). */
+async function readLabels(blobs, onProgress) {
+  const Tesseract = await loadTesseract();
+  const worker = await Tesseract.createWorker(["spa", "eng"], 1, {
+    logger: (m) => { if (m.status && typeof m.progress === "number") onProgress?.(m.status, m.progress); },
+  });
+  try {
+    const results = [];
+    for (const blob of blobs) {
+      const { data } = await worker.recognize(blob);
+      const lines = (data.lines || [])
+        .filter((l) => l.confidence > 45 && l.text.trim())
+        .sort((a, b) => (b.bbox.y1 - b.bbox.y0) - (a.bbox.y1 - a.bbox.y0))
+        .map((l) => l.text.trim());
+      results.push({ text: data.text || "", lines });
+    }
+    return results;
+  } finally {
+    await worker.terminate();
+  }
+}
+
+// ------------------------------------------------------------ colores (gratis, en el navegador)
+/** Colores dominantes de la prenda: ignora el fondo (lo que domina en los bordes de la foto). */
+async function dominantColors(blob) {
+  const bmp = await createImageBitmap(blob);
+  const S = 96;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = S;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  ctx.drawImage(bmp, 0, 0, S, S);
+  const px = ctx.getImageData(0, 0, S, S).data;
+  const key = (i) => ((px[i] >> 4) << 8) | ((px[i + 1] >> 4) << 4) | (px[i + 2] >> 4);
+  const border = new Map();
+  let borderTotal = 0;
+  const inner = new Map();
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const i = (y * S + x) * 4;
+      const edge = x < S * 0.08 || x >= S * 0.92 || y < S * 0.08 || y >= S * 0.92;
+      const dx = (x - S / 2) / (S * 0.36), dy = (y - S / 2) / (S * 0.42);
+      if (edge) { border.set(key(i), (border.get(key(i)) || 0) + 1); borderTotal++; }
+      else if (dx * dx + dy * dy <= 1) {
+        const k = key(i);
+        const b = inner.get(k) || { n: 0, r: 0, g: 0, b: 0 };
+        b.n++; b.r += px[i]; b.g += px[i + 1]; b.b += px[i + 2];
+        inner.set(k, b);
+      }
+    }
+  }
+  const background = new Set([...border].filter(([, n]) => n / borderTotal > 0.04).map(([k]) => k));
+  let buckets = [...inner].filter(([k]) => !background.has(k)).map(([, b]) => b);
+  if (buckets.reduce((s, b) => s + b.n, 0) < 200) buckets = [...inner.values()]; // la prenda ocupa toda la foto
+  buckets.sort((a, b) => b.n - a.n);
+  const clusters = [];
+  for (const b of buckets) {
+    const c = [b.r / b.n, b.g / b.n, b.b / b.n];
+    const near = clusters.find((cl) => Math.hypot(cl.r / cl.n - c[0], cl.g / cl.n - c[1], cl.b / cl.n - c[2]) < 48);
+    if (near) { near.n += b.n; near.r += b.r; near.g += b.g; near.b += b.b; } else clusters.push({ ...b });
+  }
+  const total = clusters.reduce((s, c) => s + c.n, 0);
+  const hex = (v) => Math.round(v).toString(16).padStart(2, "0");
+  return clusters.sort((a, b) => b.n - a.n)
+    .filter((c) => c.n / total >= 0.12).slice(0, 3)
+    .map((c) => ({ hex: `#${hex(c.r / c.n)}${hex(c.g / c.n)}${hex(c.b / c.n)}`, share: Math.round((c.n / total) * 100) / 100 }));
+}
 
 // ------------------------------------------------------------ imágenes
 /** Reduce la foto a 1600 px en JPEG. De paso elimina los metadatos EXIF (incluida la ubicación GPS). */
@@ -51,7 +132,6 @@ const materialsText = (d) => d.materials.length
   ? d.materials.map((m) => `${m.percent ? pct(m.percent) + " " : ""}${m.fiber}`).join(" · ")
   : "Composición desconocida";
 const brandLine = (d) => [d.brand, d.model].filter(Boolean).join(" · ");
-const confidenceLabel = (c) => (c >= 0.8 ? "Alta" : c >= 0.5 ? "Media" : "Baja");
 
 function colorDots(colors) {
   return h("span", { class: "dots" }, colors.map((c) =>
@@ -213,13 +293,13 @@ export const wardrobeView = {
 
   // ---------------------------------------------------------- alta
   startFlow() {
-    this.flow = { step: "photos", photos: [], url: "", description: "", rejected: [], result: null, error: null };
+    this.flow = { step: "photos", photos: [null, null, null], url: "", description: "", evidence: null, result: null, error: null };
     this.render();
     window.scrollTo({ top: 0, behavior: "smooth" });
   },
 
   closeFlow() {
-    this.flow?.photos.forEach((p) => URL.revokeObjectURL(p.url));
+    this.flow?.photos.forEach((p) => p && URL.revokeObjectURL(p.url));
     this.flow = null;
     this.render();
   },
@@ -253,35 +333,36 @@ export const wardrobeView = {
 
   photoPicker() {
     const f = this.flow;
-    const input = h("input", { type: "file", accept: "image/*", multiple: true, class: "sr-only", id: "wd-file" });
-    input.addEventListener("change", async () => {
-      const files = [...input.files].slice(0, MAX_PHOTOS - f.photos.length);
-      for (const file of files) {
-        try {
-          f.photos.push(await prepareImage(file));
-        } catch (err) {
-          f.error = err.message;
-        }
-      }
-      this.render();
-    });
     const tiles = PHOTO_HINTS.map((hint, i) => {
       const photo = f.photos[i];
       if (photo) {
         return h("div", { class: "ph-tile filled" },
-          h("img", { src: photo.url, alt: `Foto ${i + 1}` }),
-          h("button", { type: "button", class: "ph-remove", "aria-label": `Quitar foto ${i + 1}`,
-            onclick: () => { URL.revokeObjectURL(photo.url); f.photos.splice(i, 1); this.render(); } }, "✕"),
+          h("img", { src: photo.url, alt: hint.title }),
+          h("button", { type: "button", class: "ph-remove", "aria-label": `Quitar foto: ${hint.title}`,
+            onclick: () => { URL.revokeObjectURL(photo.url); f.photos[i] = null; f.evidence = null; this.render(); } }, "✕"),
           h("span", { class: "ph-caption" }, hint.title));
       }
-      const isNext = i === f.photos.length;
-      return h(isNext ? "label" : "div", { class: `ph-tile ${isNext ? "next" : "ghost"}`, for: isNext ? "wd-file" : null },
+      const id = `wd-file-${i}`;
+      const input = h("input", { type: "file", accept: "image/*", class: "sr-only", id });
+      input.addEventListener("change", async () => {
+        const file = input.files[0];
+        if (!file) return;
+        try {
+          f.photos[i] = await prepareImage(file);
+          f.evidence = null; // hay que volver a leer las fotos
+          f.error = null;
+        } catch (err) {
+          f.error = err.message;
+        }
+        this.render();
+      });
+      return h("label", { class: `ph-tile ${i === 0 && !photo ? "next" : ""}`, for: id }, input,
         h("span", { class: "ph-icon", "aria-hidden": "true" }, hint.icon),
         h("strong", {}, hint.title),
         h("small", {}, hint.text),
-        isNext ? h("span", { class: "ph-cta" }, f.photos.length ? "＋ Añadir foto" : "📷 Hacer o subir foto") : null);
+        h("span", { class: "ph-cta" }, i === 0 ? "📷 Hacer o subir foto" : "＋ Añadir"));
     });
-    return h("div", {}, input, h("div", { class: "ph-grid" }, tiles));
+    return h("div", { class: "ph-grid" }, tiles);
   },
 
   extraInfoFields(open) {
@@ -298,7 +379,7 @@ export const wardrobeView = {
 
   hasInput() {
     const f = this.flow;
-    return f.photos.length > 0 || f.url.trim() || f.description.trim();
+    return f.photos.some(Boolean) || f.url.trim() || f.description.trim();
   },
 
   syncIdentifyButton() {
@@ -309,52 +390,86 @@ export const wardrobeView = {
   stepPhotos() {
     return h("section", { class: "card flow-card" },
       h("h2", {}, "Haz una foto a tu prenda"),
-      h("p", { class: "muted" }, "Con la foto de las etiquetas podemos saber la marca y los materiales exactos. Puedes subir hasta 3 fotos."),
+      h("p", { class: "muted" }, "Leemos las etiquetas para saber la marca y los materiales exactos, y sacamos los colores de la foto. Todo se procesa en tu dispositivo, sin coste."),
       this.photoPicker(),
       this.extraInfoFields(false),
       h("div", { class: "flow-actions" },
         h("button", { type: "button", class: "btn btn-primary", id: "wd-identify", disabled: !this.hasInput(), onclick: () => this.identify() },
-          "Identificar prenda"),
+          "Analizar prenda"),
         h("button", { type: "button", class: "link-btn", onclick: () => this.goto("review", { draft: emptyDetails(), source: "manual" }) },
           "Prefiero rellenarla a mano")));
   },
 
   stepIdentifying() {
-    const msg = h("p", { class: "id-msg", "aria-live": "polite" }, IDENTIFY_STEPS[0]);
-    let i = 0;
-    const timer = setInterval(() => {
-      if (!msg.isConnected) return clearInterval(timer);
-      i = Math.min(i + 1, IDENTIFY_STEPS.length - 1);
-      msg.textContent = IDENTIFY_STEPS[i];
-    }, 4000);
+    const first = this.flow.photos.find(Boolean);
     return h("section", { class: "card flow-card identifying" },
       h("div", { class: "scan" },
-        this.flow.photos[0] ? h("img", { src: this.flow.photos[0].url, alt: "" }) : h("span", { class: "big" }, "🔎"),
+        first ? h("img", { src: first.url, alt: "" }) : h("span", { class: "big" }, "🔎"),
         h("span", { class: "scan-line", "aria-hidden": "true" })),
-      msg,
-      h("p", { class: "muted small" }, "Buscamos la ficha exacta del producto. Puede tardar hasta un minuto."));
+      h("p", { class: "id-msg", id: "wd-progress-msg", "aria-live": "polite" }, "Preparando…"),
+      h("span", { class: "meter wide", "aria-hidden": "true" }, h("i", { id: "wd-progress-bar", style: { width: "5%" } })),
+      h("p", { class: "muted small" }, "La primera vez se descarga el lector de etiquetas (unos 8 MB). Luego va mucho más rápido."));
+  },
+
+  progress(message, fraction) {
+    const msg = $("#wd-progress-msg");
+    const bar = $("#wd-progress-bar");
+    if (msg) msg.textContent = message;
+    if (bar && fraction !== undefined) bar.style.width = `${Math.max(5, Math.round(fraction * 100))}%`;
+  },
+
+  /** Reúne las pistas de las fotos sin coste: colores y texto de las etiquetas. */
+  async gatherEvidence() {
+    const f = this.flow;
+    if (f.evidence) return f.evidence;
+    const [garment, brand, label] = f.photos;
+    const evidence = { label_text: null, brand_lines: [], photo_colors: [] };
+    if (garment) {
+      this.progress("Calculando los colores…", 0.1);
+      evidence.photo_colors = await dominantColors(garment.blob);
+    }
+    const labelPhotos = [brand, label].filter(Boolean);
+    if (labelPhotos.length) {
+      const phases = { "loading tesseract core": "Cargando el lector de etiquetas…", "loading language traineddata": "Cargando diccionarios…",
+        "initializing api": "Preparando el lector…", "recognizing text": "Leyendo las etiquetas…" };
+      const results = await readLabels(labelPhotos.map((p) => p.blob), (status, progress) => {
+        const base = status === "recognizing text" ? 0.6 : 0.2;
+        this.progress(phases[status] || "Leyendo las etiquetas…", base + progress * 0.35);
+      });
+      const brandResult = brand ? results[0] : null;
+      const labelResult = label ? results[results.length - 1] : null;
+      evidence.label_text = results.map((r) => r.text).join("\n").slice(0, 5000);
+      evidence.brand_lines = (brandResult || labelResult).lines.slice(0, 20);
+    }
+    f.evidence = evidence;
+    return evidence;
   },
 
   async identify() {
     const f = this.flow;
-    const form = new FormData();
-    f.photos.forEach((p, i) => form.append("photos", p.blob, `foto-${i + 1}.jpg`));
-    if (f.url.trim()) form.append("product_url", f.url.trim());
-    if (f.description.trim()) form.append("description", f.description.trim());
-    if (f.rejected.length) form.append("rejected", JSON.stringify(f.rejected));
-    const source = f.photos.length ? "foto" : f.url.trim() ? "enlace" : "descripcion";
+    const source = f.photos.some(Boolean) ? "foto" : f.url.trim() ? "enlace" : "descripcion";
     this.goto("identifying");
     try {
-      const result = await api("/wardrobe/identify", { method: "POST", body: form });
+      const evidence = await this.gatherEvidence();
       if (this.flow !== f) return; // el usuario salió mientras tanto
-      if (result.status === "desconocida" || !result.candidate) {
-        this.goto("help", { result, source, error: null });
+      if (f.url.trim()) this.progress("Leyendo la ficha del producto…", 0.95);
+      const result = await api("/wardrobe/analyze", { method: "POST", body: JSON.stringify({
+        ...evidence,
+        product_url: f.url.trim() || null,
+        description: f.description.trim() || null,
+      }) });
+      if (this.flow !== f) return;
+      if (!result.candidate.base_type) {
+        // Sabemos cosas (colores, composición...) pero no qué prenda es: que el usuario lo complete.
+        this.goto("review", { result, source, draft: structuredClone(result.candidate) });
+      } else if (result.status === "desconocida") {
+        this.goto("help", { result, source });
       } else {
         this.goto("proposal", { result, source });
       }
     } catch (err) {
       if (this.flow !== f) return;
-      this.goto(f.rejected.length || f.url || f.description ? "help" : "photos");
+      this.goto(f.url || f.description ? "help" : "photos");
       f.error = err.message;
       this.render();
     }
@@ -364,33 +479,31 @@ export const wardrobeView = {
     const { result } = this.flow;
     const d = result.candidate;
     const unconfirmed = result.unconfirmed.map((u) => UNCONFIRMED_LABELS[u] || u);
-    const level = confidenceLabel(result.confidence);
+    const from = (field) => result.provenance[field]
+      ? h("span", { class: "src-badge" }, SOURCE_BADGES[result.provenance[field]] || result.provenance[field]) : null;
     return h("section", { class: "card flow-card" },
       h("h2", {}, "¿Es esta tu prenda?"),
       h("div", { class: "proposal" },
         h("div", { class: "wd-photo proposal-photo", vars: { "--c": d.colors[0]?.hex || "#ddd" } },
-          this.flow.photos[0] ? h("img", { src: this.flow.photos[0].url, alt: "Tu foto" }) : h("span", { class: "wd-photo-icon" }, d.icon)),
+          this.flow.photos.find(Boolean) ? h("img", { src: this.flow.photos.find(Boolean).url, alt: "Tu foto" }) : h("span", { class: "wd-photo-icon" }, d.icon)),
         h("div", { class: "proposal-info" },
           h("span", { class: "wd-type" }, d.base_type_name),
           h("strong", { class: "proposal-name" }, d.name),
-          brandLine(d) ? h("span", { class: "wd-brand" }, brandLine(d)) : h("span", { class: "wd-brand muted" }, "Marca sin identificar"),
+          d.brand ? h("span", { class: "wd-brand" }, d.brand, " ", from("brand")) : h("span", { class: "wd-brand muted" }, "Marca sin identificar"),
+          d.model && d.model !== d.name ? h("span", { class: "muted small" }, d.model) : null,
           d.reference ? h("span", { class: "muted small" }, `Ref. ${d.reference}`) : null,
-          h("div", { class: `confidence c-${level.toLowerCase()}` },
-            h("span", {}, `Coincidencia ${level.toLowerCase()}`),
-            h("span", { class: "meter" }, h("i", { style: { width: `${Math.round(result.confidence * 100)}%` } }))))),
+          h("span", { class: `status-pill s-${result.status}` }, result.status === "identificada" ? "✓ Datos completos" : "Faltan algunos datos"))),
       h("dl", { class: "kvs" },
         h("div", { class: "kv" }, h("dt", {}, "Colores"), h("dd", {}, d.colors.length
-          ? h("span", { class: "color-list" }, d.colors.map((c) => h("span", { class: "color-pill" }, h("i", { vars: { "--c": c.hex } }), c.name)))
+          ? h("span", { class: "color-list" }, d.colors.map((c) => h("span", { class: "color-pill" }, h("i", { vars: { "--c": c.hex } }), c.name)), from("colors"))
           : "—")),
         h("div", { class: "kv" }, h("dt", {}, "Composición"), h("dd", {}, materialsText(d), " ",
-          d.materials_complete ? h("span", { class: "badge badge-live" }, "Exacta") : h("span", { class: "badge badge-warn" }, "Sin confirmar"))),
+          d.materials_complete ? h("span", { class: "badge badge-live" }, "Exacta") : h("span", { class: "badge badge-warn" }, "Sin confirmar"), " ", from("materials"))),
+        d.notes ? h("div", { class: "kv" }, h("dt", {}, "Además"), h("dd", {}, d.notes)) : null,
         d.waterproof || d.windproof ? h("div", { class: "kv" }, h("dt", {}, "Protección"),
           h("dd", {}, [d.waterproof && "Impermeable", d.windproof && "Cortavientos"].filter(Boolean).join(" · "))) : null),
       result.message ? h("blockquote", { class: "ai-note" }, result.message) : null,
-      unconfirmed.length ? h("p", { class: "warn-line" }, "⚠️ Sin confirmar: ", unconfirmed.join(", "),
-        ". Si quieres que sea exacto, pulsa «No es esta» y añade el enlace o una foto de la etiqueta.") : null,
-      result.alternatives.length ? h("p", { class: "muted small" }, "También podría ser: ",
-        result.alternatives.map((a) => a.label).join(" · ")) : null,
+      unconfirmed.length ? h("p", { class: "warn-line" }, "⚠️ Sin confirmar: ", unconfirmed.join(", "), ".") : null,
       result.sources.length ? h("p", { class: "sources" }, "Fuentes: ", result.sources.map((s) => {
         let host = s;
         try { host = new URL(s).hostname.replace(/^www\./, ""); } catch { /* url rara */ }
@@ -404,9 +517,6 @@ export const wardrobeView = {
   },
 
   reject() {
-    const d = this.flow.result.candidate;
-    const label = [d.brand, d.model || d.name].filter(Boolean).join(" · ");
-    if (label && !this.flow.rejected.includes(label)) this.flow.rejected.push(label);
     this.goto("help");
   },
 
@@ -417,10 +527,9 @@ export const wardrobeView = {
       h("h2", {}, "Ayúdanos a encontrarla"),
       h("p", { class: "muted" }, unknown && f.result?.message
         ? f.result.message
-        : "Pega el enlace del producto o escribe lo que sepas de ella. Una foto de la etiqueta de composición también ayuda mucho."),
-      f.rejected.length ? h("p", { class: "muted small" }, "Descartadas: ", f.rejected.join(" · ")) : null,
+        : "Pega el enlace del producto (así sabremos el modelo exacto) o escribe lo que sepas de ella. Una foto nítida de la etiqueta de composición también ayuda mucho."),
       this.extraInfoFields(true),
-      h("details", { class: "more", open: f.photos.length < 2 }, h("summary", {}, `Fotos (${f.photos.length}/${MAX_PHOTOS})`), this.photoPicker()),
+      h("details", { class: "more", open: !f.photos[2] }, h("summary", {}, `Fotos (${f.photos.filter(Boolean).length}/${MAX_PHOTOS})`), this.photoPicker()),
       h("div", { class: "flow-actions" },
         h("button", { type: "button", class: "btn btn-primary", id: "wd-identify", disabled: !this.hasInput(), onclick: () => this.identify() },
           "Volver a buscar"),
@@ -432,8 +541,8 @@ export const wardrobeView = {
   stepReview() {
     const f = this.flow;
     return h("section", { class: "card flow-card" },
-      h("h2", {}, "Revisa los datos"),
-      h("p", { class: "muted" }, "Cuanto más exactos, mejores serán tus recomendaciones."),
+      h("h2", {}, f.result && !f.result.candidate.base_type ? "Completa los datos" : "Revisa los datos"),
+      f.result?.message ? h("blockquote", { class: "ai-note" }, f.result.message) : h("p", { class: "muted" }, "Cuanto más exactos, mejores serán tus recomendaciones."),
       this.detailsForm(f.draft, {
         submitLabel: "Guardar en mi armario",
         onCancel: () => this.goto(f.result?.candidate ? "proposal" : "photos"),
@@ -446,8 +555,7 @@ export const wardrobeView = {
     const form = new FormData();
     form.append("details", JSON.stringify(details));
     form.append("source", source || "foto");
-    if (f.result?.confidence !== undefined && source !== "manual") form.append("confidence", String(f.result.confidence));
-    f.photos.forEach((p, i) => form.append("photos", p.blob, `foto-${i + 1}.jpg`));
+    f.photos.filter(Boolean).forEach((p, i) => form.append("photos", p.blob, `foto-${i + 1}.jpg`));
     try {
       const item = await api("/wardrobe/items", { method: "POST", body: form });
       this.items = [item, ...this.items];
@@ -465,8 +573,8 @@ export const wardrobeView = {
     const o = this.options;
     const err = h("p", { class: "form-error", role: "alert", hidden: true });
     const text = (key, label, attrs = {}) => {
-      const input = h("input", { type: "text", value: d[key] ?? "", ...attrs });
-      input.addEventListener("input", () => { d[key] = input.value.trim() || null; });
+      const input = h("input", { type: "text", value: d[key] ?? "", "data-field": key, ...attrs });
+      input.addEventListener("input", () => { d[key] = input.value.trim() || null; delete input.dataset.auto; });
       return h("label", { class: "field" }, h("span", {}, label), input);
     };
 
@@ -476,7 +584,17 @@ export const wardrobeView = {
       o.slots.map((s) => h("optgroup", { label: s.label },
         o.garment_types.filter((g) => g.slot === s.id).map((g) =>
           h("option", { value: g.id, selected: g.id === d.base_type }, `${g.icon} ${g.name}`)))));
-    typeSel.addEventListener("change", () => { d.base_type = typeSel.value; });
+    typeSel.addEventListener("change", () => {
+      d.base_type = typeSel.value;
+      // Si aún no tiene nombre, proponemos uno: "Camiseta de manga corta verde".
+      const nameInput = form.querySelector("[data-field=name]");
+      const type = o.garment_types.find((g) => g.id === d.base_type);
+      if (type && nameInput && (!d.name || nameInput.dataset.auto === "1")) {
+        d.name = [type.name, d.colors[0]?.name].filter(Boolean).join(" ");
+        nameInput.value = d.name;
+        nameInput.dataset.auto = "1";
+      }
+    });
 
     // Colores
     const colorsBox = h("div", { class: "rows" });

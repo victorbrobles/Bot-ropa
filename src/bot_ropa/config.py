@@ -14,8 +14,7 @@ class Settings(BaseSettings):
     open_meteo_api_key: str | None = None  # solo con plan comercial
 
     # Mi armario
-    garment_identifier: Literal["claude", "demo"] = "claude"  # claude necesita ANTHROPIC_API_KEY
-    identify_daily_limit: int = 30  # identificaciones por usuario y día (cuestan dinero)
+    link_reads_daily_limit: int = 60  # enlaces de producto que cada usuario puede leer al día
     database_path: str = "data/vestia.db"
     photos_dir: str = "data/photos"
     secure_cookies: bool = False  # True en producción (HTTPS)

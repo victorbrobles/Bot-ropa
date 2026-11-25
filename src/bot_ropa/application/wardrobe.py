@@ -7,10 +7,11 @@ import uuid
 from collections import defaultdict
 from datetime import datetime, timezone
 
+from ..domain.identification import identify
 from ..domain.wardrobe import (
-    SOURCES, GarmentDetails, Identification, IdentifyRequest, Photo, WardrobeItem,
+    SOURCES, AnalyzeRequest, GarmentDetails, Identification, Photo, WardrobeItem,
 )
-from ..ports.wardrobe import GarmentIdentifier, PhotoStorage, WardrobeRepository
+from ..ports.wardrobe import PhotoStorage, ProductPageError, ProductPageReader, WardrobeRepository
 
 MAX_PHOTOS = 3
 
@@ -24,26 +25,35 @@ class NotFound(LookupError):
 
 
 class WardrobeService:
-    def __init__(self, identifier: GarmentIdentifier, repo: WardrobeRepository,
-                 photos: PhotoStorage, daily_identify_limit: int = 30, clock=time.time):
-        self._identifier = identifier
+    def __init__(self, product_reader: ProductPageReader, repo: WardrobeRepository,
+                 photos: PhotoStorage, daily_link_limit: int = 60, clock=time.time):
+        self._reader = product_reader
         self._repo = repo
         self._photos = photos
-        self._limit = daily_identify_limit
+        self._limit = daily_link_limit
         self._clock = clock
         self._usage: dict[tuple[str, int], int] = defaultdict(int)
 
-    # Identificar cuesta dinero (IA + búsquedas): limitamos por usuario y día.
-    async def identify(self, owner_id: str, request: IdentifyRequest) -> Identification:
+    async def analyze(self, owner_id: str, request: AnalyzeRequest) -> Identification:
+        """Analiza la prenda sin coste. Solo leer un enlace hace una petición a otra web,
+        así que esas lecturas se limitan por usuario y día para evitar abusos."""
+        product, product_error = None, None
+        if request.product_url:
+            self._count_link_read(owner_id)
+            try:
+                product = await self._reader.read(request.product_url)
+            except ProductPageError as exc:
+                product_error = str(exc)
+        return identify(request, product, product_error)
+
+    def _count_link_read(self, owner_id: str) -> None:
         day = int(self._clock() // 86400)
         key = (owner_id, day)
         if self._usage[key] >= self._limit:
-            raise LimitExceeded("Has llegado al límite de identificaciones de hoy. "
-                                "Puedes añadir la prenda rellenando los datos a mano.")
+            raise LimitExceeded("Has leído muchos enlaces hoy. Completa los datos a mano o vuelve mañana.")
         self._usage[key] += 1
         for old in [k for k in self._usage if k[1] < day]:
             del self._usage[old]
-        return await self._identifier.identify(request)
 
     def add(self, owner_id: str, details: GarmentDetails, photos: list[Photo],
             source: str = "foto", confidence: float | None = None) -> WardrobeItem:

@@ -176,40 +176,55 @@ class WardrobeItem:
     updated_at: str = ""
 
 
-# ------------------------------------------------------------- identificación
 @dataclass(frozen=True)
 class Photo:
     data: bytes
     media_type: str  # image/jpeg | image/png | image/webp
 
 
+# ------------------------------------------------------------- identificación
 @dataclass(frozen=True)
-class IdentifyRequest:
-    photos: tuple[Photo, ...] = ()
+class ProductInfo:
+    """Datos leídos de la ficha de un producto en la web de la tienda."""
+    url: str
+    name: str | None = None
+    brand: str | None = None
+    reference: str | None = None
+    color: str | None = None
+    material: str | None = None
+    description: str | None = None
+    page_text: str | None = None  # texto visible (para buscar la composición)
+
+
+@dataclass(frozen=True)
+class PhotoColor:
+    hex: str  # #rrggbb
+    share: float  # proporción de la prenda (0-1)
+
+
+@dataclass(frozen=True)
+class AnalyzeRequest:
+    """Todo lo que sabemos de la prenda. Se calcula gratis en el navegador."""
+    label_text: str | None = None  # OCR de la etiqueta de composición
+    brand_lines: tuple[str, ...] = ()  # OCR de la etiqueta de marca, de más a menos destacado
+    photo_colors: tuple[PhotoColor, ...] = ()
     product_url: str | None = None
     description: str | None = None
-    rejected: tuple[str, ...] = ()  # candidatos que el usuario ya dijo que no son
 
     def __post_init__(self):
-        if not (self.photos or self.product_url or self.description):
+        if not (self.label_text or self.brand_lines or self.photo_colors
+                or self.product_url or self.description):
             raise InvalidGarment("Sube una foto, pega un enlace o describe la prenda")
-
-
-@dataclass(frozen=True)
-class AlternativeMatch:
-    label: str
-    product_url: str | None = None
 
 
 @dataclass(frozen=True)
 class Identification:
     status: str  # identificada | parcial | desconocida
-    confidence: float  # 0-1
-    candidate: GarmentDetails | None
+    candidate: dict  # borrador de GarmentDetails; base_type puede faltar
     message: str  # explicación para el usuario
-    unconfirmed: tuple[str, ...] = ()  # campos que NO se han podido confirmar
-    alternatives: tuple[AlternativeMatch, ...] = ()
-    sources: tuple[str, ...] = ()  # URLs consultadas
+    provenance: dict = field(default_factory=dict)  # campo -> etiqueta | foto | web | descripcion | tipo
+    unconfirmed: tuple[str, ...] = ()
+    sources: tuple[str, ...] = ()
 
     STATUSES = ("identificada", "parcial", "desconocida")
 

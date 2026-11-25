@@ -4,15 +4,15 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from ..domain.wardrobe import Identification, IdentifyRequest, WardrobeItem
+from ..domain.wardrobe import ProductInfo, WardrobeItem
 
 
-class IdentificationError(RuntimeError):
-    """El servicio de identificación no ha podido responder."""
+class ProductPageError(RuntimeError):
+    """No se ha podido leer la ficha del producto (mensaje apto para el usuario)."""
 
 
-class GarmentIdentifier(Protocol):
-    async def identify(self, request: IdentifyRequest) -> Identification: ...
+class ProductPageReader(Protocol):
+    async def read(self, url: str) -> ProductInfo: ...
 
 
 class WardrobeRepository(Protocol):

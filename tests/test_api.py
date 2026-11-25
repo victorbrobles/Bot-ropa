@@ -5,13 +5,13 @@ from fastapi.testclient import TestClient
 from bot_ropa.config import Settings
 from bot_ropa.main import create_app
 from bot_ropa.adapters.persistence.sqlite_wardrobe import SqliteWardrobeRepository
-from bot_ropa.adapters.identify.demo import DemoGarmentIdentifier
+from conftest import FakeProductReader
 from conftest import FakeWeather
 
 
 def client():
     return TestClient(create_app(Settings(weather_provider="demo"), provider=FakeWeather(now=time.time()),
-                                 attribution="Datos de prueba", identifier=DemoGarmentIdentifier(),
+                                 attribution="Datos de prueba", product_reader=FakeProductReader(),
                                  wardrobe_repo=SqliteWardrobeRepository(":memory:")))
 
 
@@ -55,7 +55,7 @@ def test_frontend_is_served():
 
 def test_forecasts_are_cached():
     weather = FakeWeather(now=time.time())
-    c = TestClient(create_app(Settings(), provider=weather, identifier=DemoGarmentIdentifier(),
+    c = TestClient(create_app(Settings(), provider=weather, product_reader=FakeProductReader(),
                               wardrobe_repo=SqliteWardrobeRepository(":memory:")))
     body = {"origin": {"name": "X", "latitude": 40.4, "longitude": -3.7}}
     c.post("/api/outfit", json=body)

@@ -623,3 +623,11 @@ input[type="range"] { width: 100%; accent-color: var(--primary); height: 28px; }
   .kv { grid-template-columns: 1fr; gap: 2px; }
   .row-line select { max-width: 38%; }
 }
+
+/* Procedencia de los datos */
+.src-badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; background: var(--sky-soft); color: var(--sky); font-size: 0.75rem; font-weight: 600; white-space: nowrap; vertical-align: middle; }
+.status-pill { justify-self: start; margin-top: 8px; padding: 4px 12px; border-radius: 999px; font-size: 0.85rem; font-weight: 600; background: var(--warn-soft); color: #9a6a00; }
+.status-pill.s-identificada { background: var(--ok-soft); color: var(--ok); }
+.meter.wide { width: min(320px, 100%); max-width: none; }
+.meter i { transition: width 0.3s ease; }
+.ph-tile { cursor: pointer; }

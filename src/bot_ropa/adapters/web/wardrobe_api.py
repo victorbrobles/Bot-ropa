@@ -7,14 +7,16 @@ import re
 import secrets
 
 from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Request, Response, UploadFile
+from pydantic import BaseModel, Field
 
 from ...application.wardrobe import MAX_PHOTOS, LimitExceeded, NotFound, WardrobeService
 from ...domain.catalog import SLOTS
+from ...domain.garment_analysis import HEX
 from ...domain.options import COLORS
 from ...domain.wardrobe import (
-    BASE_TYPES, GarmentDetails, Identification, IdentifyRequest, InvalidGarment, Photo, WardrobeItem,
+    BASE_TYPES, AnalyzeRequest, GarmentDetails, Identification, InvalidGarment, Photo, PhotoColor,
+    WardrobeItem,
 )
-from ...ports.wardrobe import IdentificationError
 
 router = APIRouter(prefix="/api/wardrobe")
 
@@ -71,35 +73,35 @@ def _clean_url(url: str | None) -> str | None:
     return url
 
 
-@router.post("/identify")
-async def identify(
-    photos: list[UploadFile] = File(default=[]),
-    product_url: str | None = Form(None),
-    description: str | None = Form(None),
-    rejected: str | None = Form(None),
-    owner: str = Depends(get_owner),
-    service: WardrobeService = Depends(get_service),
-):
+class PhotoColorIn(BaseModel):
+    hex: str = Field(pattern=HEX.pattern)
+    share: float = Field(ge=0, le=1)
+
+
+class AnalyzeIn(BaseModel):
+    label_text: str | None = Field(None, max_length=5000)
+    brand_lines: list[str] = Field(default_factory=list, max_length=20)
+    photo_colors: list[PhotoColorIn] = Field(default_factory=list, max_length=6)
+    product_url: str | None = Field(None, max_length=500)
+    description: str | None = Field(None, max_length=1500)
+
+
+@router.post("/analyze")
+async def analyze(body: AnalyzeIn, owner: str = Depends(get_owner),
+                  service: WardrobeService = Depends(get_service)):
     try:
-        rejected_list = json.loads(rejected) if rejected else []
-        if not isinstance(rejected_list, list):
-            raise ValueError
-    except ValueError:
-        raise HTTPException(422, "Formato de candidatos descartados no válido") from None
-    try:
-        request = IdentifyRequest(
-            photos=tuple(await _read_photos(photos)),
-            product_url=_clean_url(product_url),
-            description=(description or "").strip()[:1500] or None,
-            rejected=tuple(str(r)[:200] for r in rejected_list[:5]),
+        request = AnalyzeRequest(
+            label_text=(body.label_text or "").strip() or None,
+            brand_lines=tuple(line[:80] for line in body.brand_lines if line.strip()),
+            photo_colors=tuple(PhotoColor(c.hex, c.share) for c in body.photo_colors),
+            product_url=_clean_url(body.product_url),
+            description=(body.description or "").strip() or None,
         )
-        result = await service.identify(owner, request)
+        result = await service.analyze(owner, request)
     except InvalidGarment as exc:
         raise HTTPException(422, str(exc)) from exc
     except LimitExceeded as exc:
         raise HTTPException(429, str(exc)) from exc
-    except IdentificationError as exc:
-        raise HTTPException(502, str(exc)) from exc
     return _identification(result)
 
 
@@ -184,13 +186,32 @@ def _item(item: WardrobeItem) -> dict:
     }
 
 
+def _draft(d: dict) -> dict:
+    """Borrador con los mismos campos de ayuda que una prenda guardada."""
+    base = BASE_TYPES.get(d.get("base_type"))
+    materials = d.get("materials") or []
+    total = sum(m["percent"] or 0 for m in materials)
+    return {
+        "name": None, "brand": None, "model": None, "reference": None, "colors": [], "pattern": "liso",
+        "levels": sorted(base.levels) if base else [], "occasions": sorted(base.occasions) if base else [],
+        "tags": sorted(base.tags) if base else [], "fit": base.fit if base else "unisex", "notes": None,
+        **d,
+        "materials": materials,
+        "slot": base.slot if base else None,
+        "slot_label": SLOTS[base.slot] if base else None,
+        "base_type_name": base.name if base else None,
+        "icon": base.icon if base else "👚",
+        "materials_complete": bool(materials) and all(m["percent"] for m in materials) and abs(total - 100) <= 1,
+        "colors": [{**c, "palette_label": COLORS[c["palette_id"]].label} for c in d.get("colors") or []],
+    }
+
+
 def _identification(r: Identification) -> dict:
     return {
         "status": r.status,
-        "confidence": round(r.confidence, 2),
         "message": r.message,
+        "provenance": r.provenance,
         "unconfirmed": list(r.unconfirmed),
-        "candidate": _details(r.candidate) if r.candidate else None,
-        "alternatives": [{"label": a.label, "product_url": a.product_url} for a in r.alternatives],
+        "candidate": _draft(r.candidate),
         "sources": list(r.sources),
     }

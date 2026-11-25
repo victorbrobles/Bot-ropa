@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from .adapters.weather import demo, open_meteo
 from .adapters.weather.cache import CachedWeatherProvider
 from .adapters.persistence.photos import LocalPhotoStorage
+from .adapters.product_page.reader import HttpProductPageReader
 from .adapters.persistence.sqlite_wardrobe import SqliteWardrobeRepository
 from .adapters.web import wardrobe_api
 from .adapters.web.api import router
@@ -22,7 +23,7 @@ STATIC_DIR = Path(__file__).parent / "web" / "static"
 
 
 def create_app(settings: Settings | None = None, provider=None, geocoder=None,
-               attribution: str | None = None, identifier=None, wardrobe_repo=None,
+               attribution: str | None = None, product_reader=None, wardrobe_repo=None,
                photo_storage=None) -> FastAPI:
     settings = settings or get_settings()
     client = None
@@ -36,11 +37,16 @@ def create_app(settings: Settings | None = None, provider=None, geocoder=None,
             attribution = attribution or open_meteo.ATTRIBUTION
     geocoder = geocoder or provider
 
+    own_reader = product_reader is None
+    product_reader = product_reader or HttpProductPageReader()
+
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         yield
         if client is not None:
             await client.aclose()
+        if own_reader:
+            await product_reader.aclose()
 
     app = FastAPI(title="Bot Ropa", lifespan=lifespan)
     cached = CachedWeatherProvider(provider, ttl_seconds=settings.weather_cache_minutes * 60)
@@ -48,24 +54,16 @@ def create_app(settings: Settings | None = None, provider=None, geocoder=None,
     app.state.geocoder = geocoder
     app.state.attribution = attribution or ""
     app.state.wardrobe = WardrobeService(
-        identifier or _make_identifier(settings),
+        product_reader,
         wardrobe_repo or SqliteWardrobeRepository(settings.database_path),
         photo_storage or LocalPhotoStorage(settings.photos_dir),
-        daily_identify_limit=settings.identify_daily_limit,
+        daily_link_limit=settings.link_reads_daily_limit,
     )
     app.state.secure_cookies = settings.secure_cookies
     app.include_router(router)
     app.include_router(wardrobe_api.router)
     app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="web")
     return app
-
-
-def _make_identifier(settings: Settings):
-    if settings.garment_identifier == "demo":
-        from .adapters.identify.demo import DemoGarmentIdentifier
-        return DemoGarmentIdentifier()
-    from .adapters.identify.claude import ClaudeGarmentIdentifier
-    return ClaudeGarmentIdentifier()
 
 
 app = create_app()

@@ -20,14 +20,16 @@ src/bot_ropa/
 │   ├── catalog.py     # prendas genéricas (hasta que exista "Mi armario")
 │   ├── options.py     # ánimos, ocasiones, colores y combinaciones
 │   ├── recommender.py # motor de reglas que arma el outfit
-│   └── wardrobe.py    # prendas del usuario y validación de sus datos
+│   ├── wardrobe.py    # prendas del usuario y validación de sus datos
+│   ├── garment_analysis.py  # composición, marca, tipo y colores a partir de texto
+│   └── identification.py    # une todas las pistas en un borrador de prenda
 ├── application/
 │   ├── recommend_outfit.py  # caso de uso: ventana horaria, origen + destino
 │   └── wardrobe.py          # identificar, guardar, editar y borrar prendas
-├── ports/             # interfaces: WeatherProvider, Geocoder, GarmentIdentifier, repositorios
+├── ports/             # interfaces: WeatherProvider, Geocoder, ProductPageReader, repositorios
 ├── adapters/
 │   ├── weather/       # open_meteo.py, demo.py (sin red), cache.py
-│   ├── identify/      # claude.py (visión + búsqueda web), demo.py
+│   ├── product_page/  # lectura de fichas de producto (JSON-LD / Open Graph)
 │   ├── persistence/   # SQLite y fotos en disco
 │   └── web/           # API HTTP (FastAPI)
 ├── web/static/        # interfaz web (HTML/CSS/JS sin build)
@@ -48,23 +50,31 @@ uvicorn bot_ropa.main:app --reload --app-dir src
 
 La geolocalización del navegador solo funciona en `localhost` o con HTTPS.
 
-## Mi armario: cómo se identifica una prenda
+## Mi armario: cómo se identifica una prenda (sin coste)
+
+Todo el proceso es gratuito: no se usa ninguna API de pago.
 
 1. El usuario sube hasta 3 fotos: la prenda, la etiqueta de marca y la etiqueta de composición.
-   Antes de enviarlas, el navegador las reduce y quita los metadatos EXIF (incluida la ubicación GPS).
-2. Claude (`claude-opus-5-5`) analiza las fotos, abre el enlace si lo hay y busca la ficha oficial del
-   producto en la web. Devuelve el resultado con un esquema estricto e indica qué ha podido confirmar
-   y qué no (marca, modelo, composición...).
-3. El usuario confirma ("Sí, es esta"), corrige algún dato o la rechaza y aporta un enlace o una
-   descripción para volver a buscar.
+   El navegador las reduce y quita los metadatos EXIF (incluida la ubicación GPS).
+2. **En el navegador** (en el dispositivo del usuario):
+   - los **colores** se calculan a partir de los píxeles de la foto de la prenda, ignorando el fondo;
+   - las **etiquetas** se leen con OCR ([Tesseract.js](https://github.com/naptha/tesseract.js), Apache 2.0).
+     La primera vez se descargan unos 8 MB del CDN jsdelivr; después quedan en caché.
+3. **En el servidor**, con reglas (`domain/garment_analysis.py`):
+   - la composición se extrae del texto de la etiqueta: entiende varios idiomas, códigos como "CO/PES"
+     y secciones como forro o relleno;
+   - el tipo de prenda se deduce del nombre o la descripción;
+   - si hay **enlace del producto**, se lee la ficha de la tienda (datos estructurados JSON-LD / Open
+     Graph) para sacar el nombre, la marca, la referencia, el color y el material. Algunas tiendas bloquean
+     las lecturas automáticas; entonces se pide completar los datos a mano.
+4. Cada dato indica de dónde sale (etiqueta, foto, ficha web o descripción) y el usuario confirma o
+   corrige antes de guardar.
 
-Para usarlo hace falta `ANTHROPIC_API_KEY`. Cada usuario tiene un límite diario
-(`IDENTIFY_DAILY_LIMIT`) porque cada identificación cuesta dinero. Con `GARMENT_IDENTIFIER=demo`
-se puede probar la interfaz sin coste.
+Lo que **no** hace: reconocer el modelo exacto solo mirando la foto de la prenda. Para eso haría falta IA
+de pago. El modelo exacto viene del enlace del producto.
 
-De momento cada armario va ligado a una cookie anónima del navegador. Si se borra la cookie, se
-pierde el acceso al armario. Cuando haya cuentas de usuario (por ejemplo, con Telegram), se
-asociará a la cuenta.
+De momento cada armario va ligado a una cookie anónima del navegador. Si se borra la cookie, se pierde
+el acceso al armario. Cuando haya cuentas de usuario se asociará a la cuenta.
 
 ## Tests
 
@@ -77,7 +87,7 @@ pytest
 - `GET /api/options`: ánimos, ocasiones, colores y tipos de prenda
 - `GET /api/locations?q=Madrid`: buscador de zonas
 - `POST /api/outfit`: recomendación (ver `adapters/web/schemas.py`)
-- `POST /api/wardrobe/identify`: identificar una prenda (multipart: `photos`, `product_url`, `description`, `rejected`)
+- `POST /api/wardrobe/analyze`: analizar una prenda (JSON: `label_text`, `brand_lines`, `photo_colors`, `product_url`, `description`)
 - `GET|POST /api/wardrobe/items`, `PUT|DELETE /api/wardrobe/items/{id}`, `GET /api/wardrobe/items/{id}/photos/{n}`
 
 ## Aviso de licencias

@@ -34,3 +34,21 @@ class FakeWeather:
 
     async def search(self, query, limit=6):
         return [Location("Madrid", 40.42, -3.70, "Comunidad de Madrid", "España")]
+
+
+class FakeProductReader:
+    """Lector de fichas falso: devuelve lo configurado o lanza el error indicado."""
+
+    def __init__(self, product=None, error=None):
+        self.product, self.error, self.calls = product, error, []
+
+    async def read(self, url):
+        from bot_ropa.domain.wardrobe import ProductInfo
+        from bot_ropa.ports.wardrobe import ProductPageError
+        self.calls.append(url)
+        if self.error:
+            raise ProductPageError(self.error)
+        return self.product or ProductInfo(url=url)
+
+    async def aclose(self):
+        pass

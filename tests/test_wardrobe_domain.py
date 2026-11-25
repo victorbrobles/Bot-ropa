@@ -1,6 +1,6 @@
 import pytest
 
-from bot_ropa.domain.wardrobe import GarmentDetails, IdentifyRequest, InvalidGarment
+from bot_ropa.domain.wardrobe import AnalyzeRequest, GarmentDetails, InvalidGarment
 
 
 def test_from_dict_cleans_and_fills_defaults():
@@ -43,4 +43,4 @@ def test_round_trip():
 
 def test_identify_request_needs_something():
     with pytest.raises(InvalidGarment):
-        IdentifyRequest()
+        AnalyzeRequest()
