@@ -30,7 +30,7 @@
         <a href="#/" data-route="/"><span class="menu-icon">🏠</span><span><strong>Inicio</strong><small>Todo lo que puedes hacer</small></span></a>
         <a href="#/que-me-pongo" data-route="/que-me-pongo"><span class="menu-icon">👕</span><span><strong>¿Qué me pongo?</strong><small>Tu outfit según el tiempo</small></span></a>
         <a href="#/armario" data-route="/armario"><span class="menu-icon">🚪</span><span><strong>Mi armario</strong><small>Tu ropa, organizada</small></span></a>
-        <a href="#/explorar" data-route="/explorar"><span class="menu-icon">✨</span><span><strong>Explorar outfits</strong><small>Ideas e inspiración</small></span><span class="badge">Pronto</span></a>
+        <a href="#/explorar" data-route="/explorar"><span class="menu-icon">✨</span><span><strong>Explorar outfits</strong><small>Ideas, marcas e inspiración</small></span></a>
       </nav>
     </div>
   </header>
@@ -115,15 +115,16 @@
           <article class="feature">
             <div class="feature-top">
               <span class="feature-icon">✨</span>
-              <span class="badge">Próximamente</span>
+              <span class="badge badge-live">Disponible</span>
             </div>
             <h3>Explorar outfits</h3>
-            <p>Inspiración por estilos, estaciones y ocasiones.</p>
+            <p>Ideas y marcas elegidas según tu estilo, tus referentes y la ropa que ya tienes.</p>
             <ul class="checks">
-              <li>Ideas para cada tipo de tiempo</li>
-              <li>Looks de fiesta, trabajo y etiqueta</li>
-              <li>Guarda tus favoritos</li>
+              <li>Completa un look a partir de una prenda</li>
+              <li>Descubre marcas nuevas que encajan contigo</li>
+              <li>Los básicos que le faltan a tu armario</li>
             </ul>
+            <a class="btn btn-ghost" href="#/explorar">Explorar <span aria-hidden="true">→</span></a>
           </article>
         </div>
       </div>
@@ -234,14 +235,14 @@
       <dialog id="wd-dialog" class="sheet" aria-label="Detalle de la prenda"></dialog>
     </section>
 
-    <section class="view soon-view" data-view="/explorar" hidden>
-      <div class="soon-card">
-        <span class="soon-icon">✨</span>
-        <span class="badge">Próximamente</span>
+    <section class="view explore-view" data-view="/explorar" hidden>
+      <div class="page-head">
+        <p class="eyebrow">Inspiración a tu medida</p>
         <h1>Explorar outfits</h1>
-        <p>Inspiración por estilos, estaciones y ocasiones, y la opción de guardar tus favoritos. Muy pronto.</p>
-        <a class="btn btn-primary" href="#/que-me-pongo">Mientras tanto, ¿qué me pongo hoy? <span aria-hidden="true">→</span></a>
+        <p class="page-sub">Looks, marcas y básicos elegidos según tu estilo y lo que ya tienes en el armario.</p>
       </div>
+      <div class="tabs" id="ex-tabs" role="tablist" aria-label="Secciones de Explorar"></div>
+      <div id="ex-main" aria-live="polite"></div>
     </section>
   </main>
 

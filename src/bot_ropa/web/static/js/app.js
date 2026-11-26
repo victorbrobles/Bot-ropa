@@ -3,6 +3,7 @@
 
 import { $ } from "./core.js";
 import { outfitView, setOutfitActive } from "./outfit.js";
+import { exploreView } from "./explore.js";
 import { wardrobeView } from "./wardrobe.js";
 
 // =============================================================== Router
@@ -41,6 +42,7 @@ function navigate() {
   lastPath = path;
   if (path === "/que-me-pongo") outfitView.enter();
   if (path === "/armario") wardrobeView.enter();
+  if (path === "/explorar") exploreView.enter();
   setOutfitActive(path === "/que-me-pongo");
 }
 

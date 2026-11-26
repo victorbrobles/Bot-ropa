@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
+from ..domain.explore import StyleProfile
 from ..domain.wardrobe import ProductInfo, WardrobeItem
 
 
@@ -27,3 +28,8 @@ class PhotoStorage(Protocol):
     def save(self, owner_id: str, item_id: str, index: int, data: bytes, media_type: str) -> str: ...
     def load(self, path: str) -> tuple[bytes, str]: ...
     def delete(self, paths: list[str]) -> None: ...
+
+
+class ProfileRepository(Protocol):
+    def get(self, owner_id: str) -> StyleProfile: ...
+    def save(self, owner_id: str, profile: StyleProfile) -> None: ...

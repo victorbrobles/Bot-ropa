@@ -9,7 +9,7 @@ Asistente que mira el tiempo de tu zona y te recomienda qué ponerte.
 | Portada con todas las funciones | ✅ |
 | **¿Qué me pongo?**: outfit según el tiempo, el ánimo, las horas fuera, el cambio de zona, el color, la ocasión y el tipo de prenda | ✅ |
 | **Mi armario**: alta por foto, enlace o descripción con identificación automática (marca, modelo, colores y composición), confirmación y edición | ✅ |
-| Explorar outfits | Próximamente |
+| **Explorar outfits**: perfil de estilo (estilos, marcas, referentes, presupuesto), looks para ti con tu ropa, completar un look, descubrir marcas, básicos que te faltan y novedades | ✅ |
 
 ## Arquitectura (hexagonal)
 
@@ -22,7 +22,9 @@ src/bot_ropa/
 │   ├── recommender.py # motor de reglas que arma el outfit
 │   ├── wardrobe.py    # prendas del usuario y validación de sus datos
 │   ├── garment_analysis.py  # composición, marca, tipo y colores a partir de texto
-│   └── identification.py    # une todas las pistas en un borrador de prenda
+│   ├── identification.py    # une todas las pistas en un borrador de prenda
+│   ├── style_catalog.py     # estilos, marcas y referentes (datos curados)
+│   └── explore.py           # recomendaciones: looks, completar, marcas y básicos
 ├── application/
 │   ├── recommend_outfit.py  # caso de uso: ventana horaria, origen + destino
 │   └── wardrobe.py          # identificar, guardar, editar y borrar prendas
@@ -76,6 +78,24 @@ de pago. El modelo exacto viene del enlace del producto.
 De momento cada armario va ligado a una cookie anónima del navegador. Si se borra la cookie, se pierde
 el acceso al armario. Cuando haya cuentas de usuario se asociará a la cuenta.
 
+## Explorar outfits: cómo recomienda (sin coste)
+
+- **Perfil de estilo:** estilos favoritos, marcas (del catálogo o escritas a mano), referentes de estilo,
+  presupuesto, preferencia por marcas sostenibles o por la segunda mano, y tipo de prenda.
+- **Afinidad:** cada estilo suma puntos según lo que eliges (lo que más pesa), tus referentes, tus marcas
+  y la ropa que ya tienes en el armario.
+- **Looks para ti:** looks de temporada para tus estilos principales, construidos alrededor de tus
+  propias prendas.
+- **Completar un look:** eliges prendas (tuyas o genéricas) y te propone el resto con colores que
+  combinan. Si ya tienes algo que sirve, te lo propone antes que comprar.
+- **Marcas y básicos:** marcas nuevas que encajan contigo (con el motivo) y los básicos de tu estilo que
+  aún no tienes.
+- **Dónde comprar:** son enlaces de búsqueda en la web de cada marca (vía Google), en Google Shopping y,
+  si te interesa, en Vinted. No se extraen datos de las tiendas. En el futuro estos enlaces podrían ser
+  de afiliado.
+
+Los datos de estilos, marcas y referentes están en `domain/style_catalog.py` y son orientativos.
+
 ## Tests
 
 ```bash
@@ -88,6 +108,7 @@ pytest
 - `GET /api/locations?q=Madrid`: buscador de zonas
 - `POST /api/outfit`: recomendación (ver `adapters/web/schemas.py`)
 - `POST /api/wardrobe/analyze`: analizar una prenda (JSON: `label_text`, `brand_lines`, `photo_colors`, `product_url`, `description`)
+- `GET /api/explore/catalog`, `GET|PUT /api/explore/profile`, `GET /api/explore/feed`, `GET /api/explore/brands`, `POST /api/explore/complete`
 - `GET|POST /api/wardrobe/items`, `PUT|DELETE /api/wardrobe/items/{id}`, `GET /api/wardrobe/items/{id}/photos/{n}`
 
 ## Aviso de licencias
