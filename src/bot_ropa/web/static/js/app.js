@@ -4,6 +4,7 @@
 import { $ } from "./core.js";
 import { outfitView, setOutfitActive } from "./outfit.js";
 import { exploreView } from "./explore.js";
+import { outfitsView } from "./outfits.js";
 import { wardrobeView } from "./wardrobe.js";
 
 // =============================================================== Router
@@ -12,6 +13,7 @@ const ROUTES = {
   "/que-me-pongo": "¿Qué me pongo? · Vestia",
   "/armario": "Mi armario · Vestia",
   "/explorar": "Explorar outfits · Vestia",
+  "/mis-outfits": "Mis outfits · Vestia",
 };
 
 function currentRoute() {
@@ -43,6 +45,7 @@ function navigate() {
   if (path === "/que-me-pongo") outfitView.enter();
   if (path === "/armario") wardrobeView.enter();
   if (path === "/explorar") exploreView.enter();
+  if (path === "/mis-outfits") outfitsView.enter();
   setOutfitActive(path === "/que-me-pongo");
 }
 

@@ -103,7 +103,7 @@ async function dominantColors(blob) {
 
 // ------------------------------------------------------------ imágenes
 /** Reduce la foto a 1600 px en JPEG. De paso elimina los metadatos EXIF (incluida la ubicación GPS). */
-async function prepareImage(file) {
+export async function prepareImage(file) {
   if (!file.type.startsWith("image/")) throw new Error("Ese archivo no es una imagen.");
   let source;
   try {

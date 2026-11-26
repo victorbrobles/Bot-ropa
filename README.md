@@ -9,6 +9,7 @@ Asistente que mira el tiempo de tu zona y te recomienda qué ponerte.
 | Portada con todas las funciones | ✅ |
 | **¿Qué me pongo?**: outfit según el tiempo, el ánimo, las horas fuera, el cambio de zona, el color, la ocasión y el tipo de prenda | ✅ |
 | **Mi armario**: alta por foto, enlace o descripción con identificación automática (marca, modelo, colores y composición), confirmación y edición | ✅ |
+| **Mis outfits**: guarda looks con foto y descripción; describe tu plan y te recomienda cuál ponerte (búsqueda con sinónimos) | ✅ |
 | **Explorar outfits**: perfil de estilo (estilos, marcas, referentes, presupuesto), looks para ti con tu ropa, completar un look, descubrir marcas, básicos que te faltan y novedades | ✅ |
 
 ## Arquitectura (hexagonal)
@@ -24,7 +25,9 @@ src/bot_ropa/
 │   ├── garment_analysis.py  # composición, marca, tipo y colores a partir de texto
 │   ├── identification.py    # une todas las pistas en un borrador de prenda
 │   ├── style_catalog.py     # estilos, marcas y referentes (datos curados)
-│   └── explore.py           # recomendaciones: looks, completar, marcas y básicos
+│   ├── explore.py           # recomendaciones: looks, completar, marcas y básicos
+│   ├── outfits.py           # outfits guardados y su recomendación
+│   └── text_search.py       # buscador en español (BM25 + sinónimos)
 ├── application/
 │   ├── recommend_outfit.py  # caso de uso: ventana horaria, origen + destino
 │   └── wardrobe.py          # identificar, guardar, editar y borrar prendas
@@ -96,6 +99,20 @@ el acceso al armario. Cuando haya cuentas de usuario se asociará a la cuenta.
 
 Los datos de estilos, marcas y referentes están en `domain/style_catalog.py` y son orientativos.
 
+## Mis outfits: cómo elige qué ponerte (sin coste)
+
+Guardas outfits con fotos y una descripción (más ocasión, temporada y prendas del armario, si quieres).
+Cuando describes tu plan, `domain/text_search.py` lo compara con tus outfits:
+
+- normaliza el texto (minúsculas, sin acentos, sin plurales, sin palabras vacías);
+- agrupa sinónimos en conceptos: «boda», «ceremonia» y «gala» cuentan como `#etiqueta`; «julio» y
+  «playa» como `#verano`; «gym» y «correr» como `#deporte`…;
+- puntúa con BM25, el algoritmo clásico de los buscadores;
+- ajusta el resultado: favorece los outfits de la temporada actual y penaliza los que te pusiste hace
+  menos de una semana, para variar.
+
+Para añadir sinónimos, amplía `CONCEPTS` en `text_search.py`.
+
 ## Tests
 
 ```bash
@@ -109,6 +126,7 @@ pytest
 - `POST /api/outfit`: recomendación (ver `adapters/web/schemas.py`)
 - `POST /api/wardrobe/analyze`: analizar una prenda (JSON: `label_text`, `brand_lines`, `photo_colors`, `product_url`, `description`)
 - `GET /api/explore/catalog`, `GET|PUT /api/explore/profile`, `GET /api/explore/feed`, `GET /api/explore/brands`, `POST /api/explore/complete`
+- `GET|POST /api/outfits`, `PUT|DELETE /api/outfits/{id}`, `POST /api/outfits/{id}/worn`, `POST /api/outfits/search`
 - `GET|POST /api/wardrobe/items`, `PUT|DELETE /api/wardrobe/items/{id}`, `GET /api/wardrobe/items/{id}/photos/{n}`
 
 ## Aviso de licencias

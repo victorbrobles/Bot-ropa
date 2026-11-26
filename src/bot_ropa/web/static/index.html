@@ -30,6 +30,7 @@
         <a href="#/" data-route="/"><span class="menu-icon">🏠</span><span><strong>Inicio</strong><small>Todo lo que puedes hacer</small></span></a>
         <a href="#/que-me-pongo" data-route="/que-me-pongo"><span class="menu-icon">👕</span><span><strong>¿Qué me pongo?</strong><small>Tu outfit según el tiempo</small></span></a>
         <a href="#/armario" data-route="/armario"><span class="menu-icon">🚪</span><span><strong>Mi armario</strong><small>Tu ropa, organizada</small></span></a>
+        <a href="#/mis-outfits" data-route="/mis-outfits"><span class="menu-icon">📸</span><span><strong>Mis outfits</strong><small>Tus looks guardados</small></span></a>
         <a href="#/explorar" data-route="/explorar"><span class="menu-icon">✨</span><span><strong>Explorar outfits</strong><small>Ideas, marcas e inspiración</small></span></a>
       </nav>
     </div>
@@ -111,6 +112,20 @@
               <li>Tú confirmas o corriges antes de guardar</li>
             </ul>
             <a class="btn btn-ghost" href="#/armario">Abrir mi armario <span aria-hidden="true">→</span></a>
+          </article>
+          <article class="feature">
+            <div class="feature-top">
+              <span class="feature-icon">📸</span>
+              <span class="badge badge-live">Disponible</span>
+            </div>
+            <h3>Mis outfits</h3>
+            <p>Guarda tus looks favoritos con foto y descripción, y deja que te recuerde cuál ponerte.</p>
+            <ul class="checks">
+              <li>Describe tu plan y te recomienda el outfit que mejor encaja</li>
+              <li>Entiende sinónimos: «boda» encuentra «ceremonia»</li>
+              <li>Lleva la cuenta de cuándo te lo pusiste</li>
+            </ul>
+            <a class="btn btn-ghost" href="#/mis-outfits">Ver mis outfits <span aria-hidden="true">→</span></a>
           </article>
           <article class="feature">
             <div class="feature-top">
@@ -233,6 +248,19 @@
       </div>
       <div id="wd-main" aria-live="polite"></div>
       <dialog id="wd-dialog" class="sheet" aria-label="Detalle de la prenda"></dialog>
+    </section>
+
+    <section class="view outfits-view" data-view="/mis-outfits" hidden>
+      <div class="page-head wd-head">
+        <div>
+          <p class="eyebrow">Tus looks favoritos</p>
+          <h1>Mis outfits</h1>
+          <p class="page-sub" id="of-count"></p>
+        </div>
+        <button type="button" class="btn btn-primary" id="of-add-btn"><span aria-hidden="true">＋</span> Añadir outfit</button>
+      </div>
+      <div id="of-main" class="ex-stack" aria-live="polite"></div>
+      <dialog id="of-dialog" class="sheet" aria-label="Detalle del outfit"></dialog>
     </section>
 
     <section class="view explore-view" data-view="/explorar" hidden>
